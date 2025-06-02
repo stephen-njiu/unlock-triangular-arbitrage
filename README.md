@@ -1,0 +1,2 @@
+# How to calculate Triangular Arbitrage
+<i>In a market where everyone wants a piece of less riskier arbitrage opportunities, then such opportunity becomes limited in number and they become a game of speed. Are you fast enough to see one?</i>
