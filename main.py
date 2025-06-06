@@ -1,5 +1,5 @@
 import json
-import requests
+import time
 import func_arbitrage
 
 url = 'https://api.poloniex.com/markets/ticker24h'
@@ -24,10 +24,17 @@ def step_2():
     
     # get latest prices.
     prices_json = func_arbitrage.get_prices(url=url)
-    print(prices_json)
+    # print(prices_json)
     for pair in structured_pairs:
+        time.sleep(0.3)
         prices_dict = func_arbitrage.get_price_for_t_pair(t_pair=pair, prices_json=prices_json)
-        surface_arb = func_arbitrage.calculate_surface_rate(t_pair=pair, prices_json=prices_dict)
+        surface_arb = func_arbitrage.calculate_surface_rate(pair, prices_dict)
+        # print(surface_arb)
+
+        if len(surface_arb) > 0:
+            real_rate_arb = func_arbitrage.get_depth_from_orderbook(surface_arb)
+            print(real_rate_arb)
+            time.sleep(20)
 
 
 
