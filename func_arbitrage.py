@@ -9,12 +9,29 @@ def get_prices(url):
     prices_dict = {entry['symbol']: entry for entry in coin_json}
     return prices_dict
 
+
 def get_order_book(url):
     req = requests.get(url)
     coin_json = json.loads(req.text)
-    # prices_dict = {entry['symbol']: entry for entry in coin_json}
-    # return prices_dict
+
+    def to_price_qty_pairs(flat_list):
+        return [[flat_list[i], flat_list[i + 1]] for i in range(0, len(flat_list), 2)]
+
+    if "bids" in coin_json and isinstance(coin_json["bids"], list) and isinstance(coin_json["bids"][0], str):
+        coin_json["bids"] = to_price_qty_pairs(coin_json["bids"])
+
+    if "asks" in coin_json and isinstance(coin_json["asks"], list) and isinstance(coin_json["asks"][0], str):
+        coin_json["asks"] = to_price_qty_pairs(coin_json["asks"])
+
     return coin_json
+
+
+# def get_order_book(url):
+#     req = requests.get(url)
+#     coin_json = json.loads(req.text)
+#     prices_dict = {entry['symbol']: entry for entry in coin_json}
+#     return prices_dict
+#     # return coin_json
     
 
 def get_tradeables(url):
@@ -31,7 +48,7 @@ def get_tradeables(url):
 # 3. Find B pair where one coin matched
 # 4. Find C pair where base and quote exist in A and B configurations
 
-def get_triangular_pairs(coin_list, num_of_pairs=100):
+def get_triangular_pairs(coin_list, num_of_pairs=500):
     triangular_pairs_list = []
     remove_duplicates_list = []
     pairs_list = coin_list[0:num_of_pairs]
@@ -83,6 +100,7 @@ def get_triangular_pairs(coin_list, num_of_pairs=100):
                                 combined = pair_a + "," + pair_b + "," + pair_c
                                 unique_item = ''.join(sorted(combine_all))
                                 if unique_item not in remove_duplicates_list:
+                                    print(f"triangular pair found {unique_item}... Total pairs {len(triangular_pairs_list)}")
                                     match_dict = {
                                         "a_base":a_base,
                                         "b_base":b_base,
@@ -102,7 +120,48 @@ def get_triangular_pairs(coin_list, num_of_pairs=100):
     return triangular_pairs_list
     # print(triangular_pairs_list[0:20])
 
+def get_triangular_pairs_from_market(pairs):
+    pair_map = {}
+    for p in pairs:
+        base, quote = p.split("_")
+        pair_map[(base, quote)] = p
+        pair_map[(quote, base)] = p  # reverse lookup
 
+    triangular_paths = []
+    seen = set()
+
+    for (base1, quote1), pair1 in pair_map.items():
+        for (base2, quote2), pair2 in pair_map.items():
+            if quote1 != base2:
+                continue
+            for (base3, quote3), pair3 in pair_map.items():
+                if quote2 != base3:
+                    continue
+                if quote3 != base1:
+                    continue
+
+                triangle_key = (pair1, pair2, pair3)
+                if triangle_key in seen:
+                    continue
+                seen.add(triangle_key)
+
+                match_dict = {
+                    "a_base": base1,
+                    "a_quote": quote1,
+                    "b_base": base2,
+                    "b_quote": quote2,
+                    "c_base": base3,
+                    "c_quote": quote3,
+                    "pair_a": pair1,
+                    "pair_b": pair2,
+                    "pair_c": pair3,
+                    "combined": pair1 + "," + pair2 + "," + pair3
+                }
+
+                triangular_paths.append(match_dict)
+                print(f"[+] Triangular pair found: {pair1}, {pair2}, {pair3} → Total found: {len(triangular_paths)}")
+
+    return triangular_paths
 
 def get_price_for_t_pair(t_pair, prices_json):
     # extract pair info
@@ -134,6 +193,7 @@ def calculate_surface_rate(t_pair, prices_dict):
     If we are swapping the coin on the left(BASE) to the right (QUOTE) then * (1/Ask)
     If we are swapping the coin on teh right (Quote) to the left (Base) then * Bid
     """
+
     # Set Variables
     starting_amount = 1
     min_surface_rate = 0
@@ -166,9 +226,15 @@ def calculate_surface_rate(t_pair, prices_dict):
     c_ask = prices_dict["pair_c_ask"]
     c_bid = prices_dict["pair_c_bid"]
 
+    # Sanity check: ensure none of the prices are zero
+    price_values = [a_ask, a_bid, b_ask, b_bid, c_ask, c_bid]
+    if any(p == 0 or p is None for p in price_values):
+        print("[!] Skipping invalid prices:", prices_dict)
+        return {}
+    
     # Set directions and loop through
     direction_list = ["forward", "reverse"]
-    try:
+    if True:
         for direction in direction_list:
 
             # Set additional variables for swap information
@@ -446,8 +512,8 @@ def calculate_surface_rate(t_pair, prices_dict):
                 }
 
                 return surface_dict
-    except Exception as e:
-        print("Pair passed!")
+    # except Exception as e:
+    #     print("Pair passed!", e)
     return surface_dict
 
 # Reformat Order Book for Depth Calculation
@@ -521,8 +587,8 @@ def get_depth_from_orderbook(surface_arb):
     starting_amount_dict = {
         "USDT": 100,
         "USDC": 100,
-        "BTC": 0.05,
-        "ETH": 0.1
+        "BTC": 100,
+        "ETH": 100
     }
     if swap_1 in starting_amount_dict:
         starting_amount = starting_amount_dict[swap_1]
@@ -541,9 +607,9 @@ def get_depth_from_orderbook(surface_arb):
     # is it this one? get_tradeables()
     url1 = f"https://api.poloniex.com/markets/{contract_1}/orderBook?limit=20"
     depth_1_prices = get_order_book(url1)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
-    print(depth_1_prices)
-    print("####################")
-    print(get_order_book(url1))
+    # print(depth_1_prices)
+    # print("####################")
+    # print(get_order_book(url1))
     depth_1_reformatted_prices = reformated_orderbook(depth_1_prices, contract_1_direction)
     time.sleep(0.3)
     url2 = f"https://api.poloniex.com/markets/{contract_2}/orderBook?limit=20"
@@ -577,4 +643,5 @@ def get_depth_from_orderbook(surface_arb):
         return return_dict
     else:
         return {}
+
 

@@ -1,1 +1,5 @@
 triarb/
+node_modules/
+__pycache__/
+.vscode/
+.env    
