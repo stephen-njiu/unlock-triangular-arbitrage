@@ -6,7 +6,7 @@ import json
 import time
 
 # Authorization
-graph_api_key = '30d673f959a1e8d4d54f8b7c809583dd'
+graph_api_key = 'your api key'
 url = 'https://gateway.thegraph.com/api/subgraphs/id/5zvR82QoaXYFyDEKLZ9t6v9adgnptxYpKpSbxtgVENFV'
 headers = {
   'Authorization': f'Bearer {graph_api_key}',
